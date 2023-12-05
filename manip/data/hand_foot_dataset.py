@@ -166,7 +166,7 @@ class HandFootManipDataset(Dataset):
 
         self.obj_geo_root_folder = os.path.join(data_root_folder, "captured_objects")
 
-        self.bps_path = "./bps.pt"
+        self.bps_path = "./manip/data/bps.pt"
 
         train_subjects = []
         test_subjects = []
