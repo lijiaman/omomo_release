@@ -33,6 +33,11 @@ pip install tqdm dotmap PyYAML omegaconf loguru
 cd human_body_prior/
 python setup.py develop
 ```
+Install BPS.
+```
+pip install git+https://github.com/otaheri/chamfer_distance
+pip install git+https://github.com/otaheri/bps_torch
+```
 Install other dependencies. 
 ```
 pip install -r requirements.txt 

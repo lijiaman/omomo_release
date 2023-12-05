@@ -12,3 +12,4 @@ wandb==0.12.21
 ema-pytorch==0.0.10
 einops==0.4.1
 pyopengl==3.1.0 
+matplotlib

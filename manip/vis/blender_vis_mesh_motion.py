@@ -4,8 +4,8 @@ import trimesh
 import imageio 
 import numpy as np 
 
-BLENDER_PATH = "/viscam/u/jiamanli/blender-3.2.0-linux-x64/blender"
-BLENDER_SCRIPTS_FOLDER = "/viscam/u/jiamanli/github/omomo_release/manip/vis"
+BLENDER_PATH = "blender-3.2.0-linux-x64/blender"
+BLENDER_SCRIPTS_FOLDER = "omomo_release/manip/vis"
 
 def images_to_video(img_folder, output_vid_file):
     os.makedirs(img_folder, exist_ok=True)
@@ -35,10 +35,12 @@ def images_to_video_w_imageio(img_folder, output_vid_file):
     imageio.mimwrite(output_vid_file, im_arr, fps=30, quality=8) 
 
 def run_blender_rendering_and_save2video(obj_folder_path, out_folder_path, out_vid_path, \
-    scene_blend_path="/viscam/u/jiamanli/github/hoi_syn/utils/blender_utils/floor_colorful_mat.blend", \
+    scene_blend_path="", \
     vis_object=False, vis_human=True, vis_hand_and_object=False, vis_gt=False, \
     vis_handpose_and_object=False, hand_pose_path=None, mat_color="blue"):
     
+    scene_blend_path = os.path.join(BLENDER_SCRIPTS_FOLDER, "floor_colorful_mat.blend")
+
     if not os.path.exists(out_folder_path):
         os.makedirs(out_folder_path)
 
