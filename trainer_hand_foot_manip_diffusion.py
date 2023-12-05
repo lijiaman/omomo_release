@@ -23,8 +23,6 @@ import torch.nn.functional as F
 
 import pytorch3d.transforms as transforms 
 
-import igl 
-
 from ema_pytorch import EMA
 from multiprocessing import cpu_count
 
@@ -378,7 +376,7 @@ class Trainer(object):
         output_file.close()
 
     def process_hand_foot_contact_jpos(self, hand_foot_jpos, object_mesh_verts, object_mesh_faces, obj_rot):
-        # hand_foot_jpos: T X 4(2) X 3 
+        # hand_foot_jpos: T X 2 X 3 
         # object_mesh_verts: T X Nv X 3 
         # object_mesh_faces: Nf X 3 
         # obj_rot: T X 3 X 3 
@@ -394,15 +392,15 @@ class Trainer(object):
 
         threshold = 0.03 # Use palm position, should be smaller. 
        
-        joint2object_dist = torch.cdist(hand_foot_jpos, object_mesh_verts.to(hand_foot_jpos.device)) # T X 4 X Nv 
+        joint2object_dist = torch.cdist(hand_foot_jpos, object_mesh_verts.to(hand_foot_jpos.device)) # T X 2 X Nv 
      
-        all_dist, all_object_c_idx_list = joint2object_dist.min(dim=2) # T X 4 
-        all_contact_labels = all_dist < threshold # T X 4 
+        all_dist, all_object_c_idx_list = joint2object_dist.min(dim=2) # T X 2
+        all_contact_labels = all_dist < threshold # T X 2
 
-        new_hand_foot_jpos = hand_foot_jpos.clone() # T X 4(2) X 3 
+        new_hand_foot_jpos = hand_foot_jpos.clone() # T X 2 X 3 
 
         # For each joint, scan the sequence, if contact is true, then use the corresponding object idx for the 
-        # rest of subsequence in contact until the distance is above a threshold. 
+        # rest of subsequence in contact. 
         for j_idx in range(num_joints):
             continue_prev_contact = False 
             for t_idx in range(num_steps):
@@ -476,7 +474,8 @@ class Trainer(object):
 
             # Add postprocessing for hand positions. 
             if self.add_hand_processing:
-                curr_seq_pred_hand_foot_jpos = self.process_hand_foot_contact_jpos(pred_hand_foot_pos[seq_idx], obj_mesh_verts, obj_mesh_faces, obj_rot)
+                curr_seq_pred_hand_foot_jpos = self.process_hand_foot_contact_jpos(pred_hand_foot_pos[seq_idx], \
+                                    obj_mesh_verts, obj_mesh_faces, obj_rot)
 
                 all_processed_hand_jpos[seq_idx] = curr_seq_pred_hand_foot_jpos 
             else:
@@ -574,7 +573,7 @@ class Trainer(object):
         with torch.no_grad():
             for s_idx, val_data_dict in enumerate(test_loader):
 
-                if not s_idx % 8 == 0:
+                if (not s_idx % 8 == 0) and (not self.for_quant_eval): # Visualize part of data
                     continue 
 
                 val_data = val_data_dict['motion'].cuda()
@@ -945,7 +944,7 @@ def run_train(opt, device):
         diffusion_model,
         train_batch_size=opt.batch_size, # 32
         train_lr=opt.learning_rate, # 1e-4
-        train_num_steps=8000000,         # 700000, total training steps
+        train_num_steps=400000,         # 700000, total training steps
         gradient_accumulate_every=2,    # gradient accumulation steps
         ema_decay=0.995,                # exponential moving average decay
         amp=True,                        # turn on mixed precision
@@ -979,7 +978,7 @@ def run_sample(opt, device, run_pipeline=False):
         diffusion_model,
         train_batch_size=opt.batch_size, # 32
         train_lr=opt.learning_rate, # 1e-4
-        train_num_steps=8000000,         # 700000, total training steps
+        train_num_steps=400000,         # 700000, total training steps
         gradient_accumulate_every=2,    # gradient accumulation steps
         ema_decay=0.995,                # exponential moving average decay
         amp=True,                        # turn on mixed precision

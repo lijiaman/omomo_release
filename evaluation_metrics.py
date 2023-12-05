@@ -24,23 +24,6 @@ def get_frobenious_norm_rot_only(x, y):
         error += np.linalg.norm(ident_mat - error_mat, 'fro')
     return error / len(x)
 
-def get_foot_sliding(
-    verts,
-    up="z",
-    threshold = 0.01  # 1 cm/frame
-):
-    # verts: T X Nv X 3
-    vert_velocities = []
-    up_coord = 2 if up == "z" else 1
-    lowest_vert_idx = np.argmin(verts[:, :, up_coord], axis=1)
-    for frame in range(1, verts.shape[0] - 1):
-        vert_idx = lowest_vert_idx[frame]
-        vel = np.linalg.norm(
-            verts[frame + 1, vert_idx, :] - verts[frame - 1, vert_idx, :]
-        ) / 2
-        vert_velocities.append(vel)
-    return np.sum(np.array(vert_velocities) > threshold) / verts.shape[0] * 100
-
 def determine_floor_height_and_contacts(body_joint_seq, fps):
     '''
     Input: body_joint_seq N x 22 x 3 numpy array
@@ -351,10 +334,6 @@ def compute_metrics(ori_verts_gt, ori_verts_pred, ori_jpos_gt, ori_jpos_pred, hu
     rot_dist = get_frobenious_norm_rot_only(rot_mat_pred.reshape(-1, 3, 3), rot_mat_gt.reshape(-1, 3, 3))
 
     num_meshes = verts_pred.shape[0]
-
-    # Calculate foot sliding
-    # foot_sliding_verts = get_foot_sliding(ori_verts_pred.detach().cpu().numpy())
-
    
     floor_height = determine_floor_height_and_contacts(ori_jpos_pred.detach().cpu().numpy(), fps=30)
     gt_floor_height = determine_floor_height_and_contacts(ori_jpos_gt.detach().cpu().numpy(), fps=30)
@@ -416,20 +395,6 @@ def compute_metrics(ori_verts_gt, ori_verts_pred, ori_jpos_gt, ori_jpos_pred, hu
         contact_dist = contact_dist.detach().cpu().numpy()/float(gt_contact_cnt)
         gt_contact_dist = gt_contact_dist.detach().cpu().numpy()/float(gt_contact_cnt)
 
-    # Compute the percentage of predicted contact in GT contact frames. This is actually recall. 
-    # gt_contact_cnt = 0
-    # pred_contact_cnt = 0
-    # for idx in range(num_steps):
-    #     if gt_lhand_contact[idx] or gt_rhand_contact[idx]:
-    #         gt_contact_cnt += 1
-    #         if lhand_contact[idx] or rhand_contact[idx]:
-    #             pred_contact_cnt += 1 
-
-    # if gt_contact_cnt == 0:
-    #     contact_percent = 1 
-    # else:
-    #     contact_percent = pred_contact_cnt/float(gt_contact_cnt)
-
     # Compute precision and recall for contact. 
     TP = 0
     FP = 0
@@ -450,12 +415,6 @@ def compute_metrics(ori_verts_gt, ori_verts_pred, ori_jpos_gt, ori_jpos_pred, hu
         if gt_in_contact and (not pred_in_contact):
             FN += 1
 
-    # if (TP+FP) == 0 or (TP+FN) == 0:
-    #     import pdb 
-    #     pdb.set_trace() 
-
-    # import pdb 
-    # pdb.set_trace() 
     contact_acc = (TP+TN)/(TP+FP+TN+FN)
 
     if (TP+FP) == 0: # Prediction no contact!!!
@@ -474,8 +433,6 @@ def compute_metrics(ori_verts_gt, ori_verts_pred, ori_jpos_gt, ori_jpos_pred, hu
         contact_f1_score = 0 
     else:
         contact_f1_score = 2 * (contact_precision * contact_recall)/(contact_precision+contact_recall) 
-    # print("Precision:{0}".format(contact_precision))
-    # print("Recall:{0}".format(contact_recall))
-
+   
     return lhand_jpe, rhand_jpe, hand_jpe, mpvpe, mpjpe, rot_dist, trans_err, gt_contact_dist, contact_dist, \
     gt_foot_sliding_jnts, foot_sliding_jnts, contact_precision, contact_recall, contact_acc, contact_f1_score  

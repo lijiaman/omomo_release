@@ -21,7 +21,7 @@ from human_body_prior.body_model.body_model import BodyModel
 
 from manip.lafan1.utils import rotate_at_frame_w_obj 
 
-SMPLH_PATH = "/viscam/u/jiamanli/github/hm_interaction/smpl_all_models/smplh_amass"
+SMPLH_PATH = "./data/smpl_all_models/smplh_amass"
 
 def to_tensor(array, dtype=torch.float32):
     if not torch.is_tensor(array):

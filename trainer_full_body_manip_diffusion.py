@@ -403,7 +403,6 @@ class Trainer(object):
 
         contact_dist_list = []
         gt_contact_dist_list = []
-
       
         if self.test_on_train:
             test_loader = torch.utils.data.DataLoader(
@@ -897,7 +896,7 @@ def run_train(opt, device):
         diffusion_model,
         train_batch_size=opt.batch_size, # 32
         train_lr=opt.learning_rate, # 1e-4
-        train_num_steps=8000000,         # 700000, total training steps
+        train_num_steps=400000,         # 700000, total training steps
         gradient_accumulate_every=2,    # gradient accumulation steps
         ema_decay=0.995,                # exponential moving average decay
         amp=True,                        # turn on mixed precision
@@ -931,7 +930,7 @@ def run_sample(opt, device):
         diffusion_model,
         train_batch_size=opt.batch_size, # 32
         train_lr=opt.learning_rate, # 1e-4
-        train_num_steps=8000000,         # 700000, total training steps
+        train_num_steps=400000,         # total training steps
         gradient_accumulate_every=2,    # gradient accumulation steps
         ema_decay=0.995,                # exponential moving average decay
         amp=True,                        # turn on mixed precision
