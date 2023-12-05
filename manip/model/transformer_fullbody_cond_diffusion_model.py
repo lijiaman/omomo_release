@@ -298,62 +298,7 @@ class CondGaussianDiffusion(nn.Module):
         return x # BS X T X D
 
     @torch.no_grad()
-    def p_sample_loop_sliding_window(self, shape, x_start, x_cond_all):
-        device = self.betas.device
-
-        b = shape[0]
-        assert b == 1
-        
-        x_all = torch.randn(shape, device=device)
-
-        x_blocks = []
-        x_cond_blocks = []
-        # Divide to blocks to form a batch, then just need run model once to get all the results. 
-        num_steps = x_start.shape[1]
-        stride = self.window // 2
-        for t_idx in range(0, num_steps, stride):
-            x = x_all[0, t_idx:t_idx+self.window]
-            x_cond = x_cond_all[0, t_idx:t_idx+self.window]
-
-            x_blocks.append(x) # T X D 
-            x_cond.append(x_cond) # T X D 
-
-        last_window_x = None 
-        last_window_cond = None 
-        if x_blocks[-1].shape[0] != x_blocks[0].shape[0]:
-            last_window_x = x_blocks[-1][None] # 1 X T X D 
-            last_window_cond = x_cond_blocks[-1][None] 
-
-            x_blocks = torch.stack(x_blocks[:-1]) # K X T X D 
-            x_cond_blocks = torch.stack(x_cond_blocks[:-1]) # K X T X D 
-        else:
-            x_blocks = torch.stack(x_blocks) # K X T X D 
-            x_cond_blocks = torch.stack(x_cond_blocks) # K X T X D 
-       
-        for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-            x_blocks = self.p_sample(x_blocks, torch.full((b,), i, device=device, dtype=torch.long), x_cond_blocks)    
-
-        if last_window_x is not None:
-            for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                last_window_x = self.p_sample(last_window_x, torch.full((b,), i, device=device, dtype=torch.long), last_window_cond)    
-
-        # Convert from K X T X D to a single sequence.
-        seq_res = None  
-        # for t_idx in range(0, num_steps, stride):
-        num_windows = x_blocks.shape[0]
-        for w_idx in range(num_windows):
-            if w_idx == 0:
-                seq_res = x_blocks[w_idx] # T X D 
-            else:
-                seq_res = torch.cat((seq_res, x_blocks[self.window-stride:]), dim=0)
-
-        if last_window_x is not None:
-            seq_res = torch.cat((seq_res, last_window_x[self.window-stride:]), dim=0)
-
-        return seq_res # BS X T X D
-
-    # @torch.no_grad()
-    def sample(self, x_start, ori_x_cond=None, cond_mask=None, padding_mask=None):
+    def sample(self, x_start, cond_mask=None, padding_mask=None):
         # naive conditional sampling by replacing the noisy prediction with input target data. 
         self.denoise_fn.eval() 
        
@@ -367,24 +312,6 @@ class CondGaussianDiffusion(nn.Module):
         # BS X T X D
             
         self.denoise_fn.train()
-
-        return sample_res  
-
-    @torch.no_grad()
-    def sample_sliding_window(self, x_start, ori_x_cond):
-        # If the sequence is longer than trained max window, divide 
-        self.denoise_fn.eval()
-        self.bps_encoder.eval()
-
-        # Encode object geometry to low dimensional vectors. 
-        x_cond = torch.cat((ori_x_cond[:, :, :3], self.bps_encoder(ori_x_cond[:, :, 3:])), dim=-1) # BS X T X (3+256) 
-
-        sample_res = self.p_sample_loop_sliding_window(x_start.shape, \
-                x_start, x_cond)
-        # BS X T X D
-        
-        self.denoise_fn.train()
-        self.bps_encoder.train()
 
         return sample_res  
 

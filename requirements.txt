@@ -1,0 +1,14 @@
+joblib 
+imageio==2.19.3 
+imageio-ffmpeg==0.4.7 
+opencv-python 
+trimesh
+scipy 
+scikit-learn 
+scikit-image 
+scenepic==1.0.8
+torchgeometry==0.1.2
+wandb==0.12.21
+ema-pytorch==0.0.10
+einops==0.4.1
+pyopengl==3.1.0 

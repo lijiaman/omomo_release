@@ -1,7 +1,7 @@
 # Object Motion Guided Human Motion Synthesis (SIGGRAPH Asia 2023) 
-This is the official implementation for the SIGGRAPH Asia 2023 (TOG) [paper](https://arxiv.org/abs/). For more information, please check the [project webpage](https://lijiaman.github.io/projects/omomo/).
+This is the official implementation for the SIGGRAPH Asia 2023 (TOG) [paper](https://arxiv.org/abs/2309.16237). For more information, please check the [project webpage](https://lijiaman.github.io/projects/omomo/).
 
-![OMOMO Teaser](omomo_teaser.jpg)
+![OMOMO Teaser](omomo_teaser.png)
 
 ## Environment Setup
 > Note: This code was developed on Ubuntu 20.04 with Python 3.8, CUDA 11.3 and PyTorch 1.11.0.
@@ -38,16 +38,18 @@ Install other dependencies.
 pip install -r requirements.txt 
 ```
 
-### Quick Start 
-First, download pretrained [models](https://drive.google.com/drive/folders/1llKvkTg0v-eqXGlIrEJYNqUqXAE0x8GK?usp=sharing) and put ```pretrained_models/``` to the root folder.  
+### Testing
+First, please download the [dataset]() and put ```data/``` to the root folder. You can check all the [visualizations]() of each motion sequence.  
 
-If you would like to generate visualizations, please download [Blender](https://www.blender.org/download/) first. And put blender path to blender_path. Replace the blender_path in line 45 of ```omomo_release/manip/vis/blender_vis_mesh_motion.py```. 
+Then, download pretrained [models](https://drive.google.com/drive/folders/1llKvkTg0v-eqXGlIrEJYNqUqXAE0x8GK?usp=sharing) and put ```pretrained_models/``` to the root folder.  
 
-Please download [SMPL-H](https://mano.is.tue.mpg.de/download.php) (select the extended SMPL+H model) and put the model to ```smpl_models/smplh_amass/```. If you have a different folder path for SMPL-H model, please modify the path in line 13 of ```egoego/data/amass_diffusion_dataset.py```.
+If you would like to generate visualizations, please download [Blender](https://www.blender.org/download/) first. And put blender path to blender_path. Replace the blender_path in line 7 of ```omomo_release/manip/vis/blender_vis_mesh_motion.py```. 
 
-Then run EgoEgo pipeline on the testing data. This will generate corresponding visualization results in folder ```test_data_res/```. To disable visualizations, please remove ```--gen_vis```. 
+Please download [SMPL-H](https://mano.is.tue.mpg.de/download.php) (select the extended SMPL+H model), [SMPL-X]() and put the model to ```data/smpl_all_models/```. If you have a different folder path for SMPL-H model, please modify the path in line 13 of ```omomo/data/hand_foot_dataset.py```.
+
+Then run OMOMO on the testing data. This will generate corresponding visualization results in folder ```test_data_res/```. To disable visualizations, please remove ```--gen_vis```. 
 ```
-sh scripts/test_egoego_pipeline.sh
+sh scripts/test_omomo.sh
 ```
 
 ### Training 
@@ -60,4 +62,3 @@ Train stage 2 (generating full-body motion from hand joint position).
 sh scripts/train_stage2.sh
 ```
 
-### Evaluation

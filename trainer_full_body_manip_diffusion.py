@@ -195,9 +195,9 @@ class Trainer(object):
         self.ds = train_dataset 
         self.val_ds = val_dataset
         self.dl = cycle(data.DataLoader(self.ds, batch_size=self.batch_size, \
-            shuffle=True, pin_memory=True, num_workers=1))
+            shuffle=True, pin_memory=True, num_workers=4))
         self.val_dl = cycle(data.DataLoader(self.val_ds, batch_size=self.batch_size, \
-            shuffle=False, pin_memory=True, num_workers=1))
+            shuffle=False, pin_memory=True, num_workers=4))
 
     def save(self, milestone):
         data = {
@@ -252,8 +252,6 @@ class Trainer(object):
             for i in range(self.gradient_accumulate_every):
                 data_dict = next(self.dl)
                 data = data_dict['motion'].cuda()
-       
-                ori_data_cond = None 
 
                 cond_mask = None 
 
@@ -273,7 +271,7 @@ class Trainer(object):
                 padding_mask = tmp_mask[:, None, :].to(data.device)
 
                 with autocast(enabled = self.amp):    
-                    loss_diffusion = self.model(data, ori_data_cond, cond_mask, padding_mask)
+                    loss_diffusion = self.model(data, cond_mask, padding_mask)
                     
                     loss = loss_diffusion
 
@@ -319,8 +317,6 @@ class Trainer(object):
                 with torch.no_grad():
                     val_data_dict = next(self.val_dl)
                     val_data = val_data_dict['motion'].cuda()
-   
-                    ori_data_cond = None 
 
                     cond_mask = None  
 
@@ -340,7 +336,7 @@ class Trainer(object):
                     padding_mask = tmp_mask[:, None, :].to(val_data.device)
 
                     # Get validation loss 
-                    val_loss_diffusion = self.model(val_data, ori_data_cond, cond_mask, padding_mask)
+                    val_loss_diffusion = self.model(val_data, cond_mask, padding_mask)
                     val_loss = val_loss_diffusion 
                     if self.use_wandb:
                         val_log_dict = {
@@ -355,7 +351,7 @@ class Trainer(object):
                     if self.step % self.save_and_sample_every == 0:
                         self.save(milestone)
 
-                        all_res_list = self.ema.ema_model.sample(val_data, ori_data_cond, cond_mask, padding_mask)
+                        all_res_list = self.ema.ema_model.sample(val_data, cond_mask, padding_mask)
                         all_res_list = all_res_list[:bs_for_vis]
 
                         # Visualization
@@ -427,11 +423,6 @@ class Trainer(object):
             for s_idx, val_data_dict in enumerate(test_loader):
                 val_data = val_data_dict['motion'].cuda()
 
-                obj_bps_data = val_data_dict['obj_bps'].cuda()
-                obj_com_pos = val_data_dict['obj_com_pos'].cuda() 
-
-                ori_data_cond = torch.cat((obj_com_pos, obj_bps_data), dim=-1) # BS X T X (3+1024*3)
-
                 cond_mask = None 
 
                 left_joint_mask = self.prep_joint_condition_mask(val_data, joint_idx=22, pos_only=True)
@@ -474,7 +465,7 @@ class Trainer(object):
                 sampled_all_res_per_seq = [] 
 
                 for sample_idx in range(num_samples_per_seq):
-                    all_res_list = self.ema.ema_model.sample(val_data, ori_data_cond, \
+                    all_res_list = self.ema.ema_model.sample(val_data, \
                     cond_mask=cond_mask, padding_mask=padding_mask) # BS X T X D 
 
                     sampled_all_res_per_seq.append(all_res_list) 
@@ -704,16 +695,12 @@ class Trainer(object):
             curr_local_rot_aa_rep = transforms.matrix_to_axis_angle(curr_local_rot_mat) # T X 22 X 3 
             
             curr_global_root_jpos = global_root_jpos[idx] # T X 3
-            # move_xy_trans = curr_global_root_jpos.clone()[0:1] # 1 X 3 
-            # move_xy_trans[:, 2] = 0 
+          
             if selected_seq_idx is None:
                 curr_trans2joint = trans2joint[idx:idx+1].clone()
             else:
                 curr_trans2joint = trans2joint[selected_seq_idx:selected_seq_idx+1].clone()
 
-            # curr_trans2joint[:, 2] = 0
-           
-            # root_trans = curr_global_root_jpos - move_xy_trans + curr_trans2joint # T X 3 
             root_trans = curr_global_root_jpos + curr_trans2joint # T X 3 
          
             # Generate global joint position 
@@ -735,8 +722,6 @@ class Trainer(object):
                 curr_seq_name = data_dict['seq_name'][selected_seq_idx]
                 object_name = curr_seq_name.split("_")[1]
 
-            # curr_obj_trans = curr_obj_trans - move_xy_trans.to(curr_obj_trans.device)
-
             # Get human verts 
             mesh_jnts, mesh_verts, mesh_faces = \
                 run_smplx_model(root_trans[None].cuda(), curr_local_rot_aa_rep[None].cuda(), \
@@ -752,8 +737,6 @@ class Trainer(object):
                     curr_obj_bottom_rot_mat = data_dict['obj_bottom_rot_mat'][selected_seq_idx]
                     curr_obj_bottom_trans = data_dict['obj_bottom_trans'][selected_seq_idx]
                     curr_obj_bottom_scale = data_dict['obj_bottom_scale'][selected_seq_idx]
-
-                # curr_obj_bottom_trans = curr_obj_bottom_trans - move_xy_trans.to(curr_obj_trans.device)
 
                 obj_mesh_verts, obj_mesh_faces = self.ds.load_object_geometry(object_name, \
                     curr_obj_scale.detach().cpu().numpy(), curr_obj_trans.detach().cpu().numpy(), \
@@ -788,8 +771,7 @@ class Trainer(object):
             else:
                 dest_mesh_vis_folder = os.path.join(self.vis_folder, vis_tag, str(step))
             
-            if (not for_quant_eval) and selected_seq_idx == 0:
-            # if not self.for_quant_eval:
+            if not self.for_quant_eval:
                 if not os.path.exists(dest_mesh_vis_folder):
                     os.makedirs(dest_mesh_vis_folder)
 
@@ -808,7 +790,6 @@ class Trainer(object):
                     out_vid_file_path = os.path.join(dest_mesh_vis_folder, \
                                     "vid_step_"+str(step)+"_bs_idx_"+str(idx)+".mp4")
 
-            if not self.for_quant_eval:
                 if selected_seq_idx is None:
                     actual_len = seq_len[idx]
                 else:
@@ -907,7 +888,7 @@ def run_train(opt, device):
                 n_dec_layers=opt.n_dec_layers, n_head=opt.n_head, d_k=opt.d_k, d_v=opt.d_v, \
                 max_timesteps=opt.window+1, out_dim=repr_dim, timesteps=1000, \
                 objective="pred_x0", loss_type=loss_type, \
-                batch_size=opt.batch_size, add_object_bps=opt.add_object_bps)
+                batch_size=opt.batch_size)
    
     diffusion_model.to(device)
 
@@ -941,7 +922,7 @@ def run_sample(opt, device):
                 n_dec_layers=opt.n_dec_layers, n_head=opt.n_head, d_k=opt.d_k, d_v=opt.d_v, \
                 max_timesteps=opt.window+1, out_dim=repr_dim, timesteps=1000, \
                 objective="pred_x0", loss_type=loss_type, \
-                batch_size=opt.batch_size, add_object_bps=opt.add_object_bps)
+                batch_size=opt.batch_size)
 
     diffusion_model.to(device)
 
@@ -966,7 +947,7 @@ def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', default='runs/train', help='project/name')
     parser.add_argument('--wandb_pj_name', type=str, default='', help='project name')
-    parser.add_argument('--entity', default='jiamanli', help='W&B entity')
+    parser.add_argument('--entity', default='wandb_account_name', help='W&B entity')
     parser.add_argument('--exp_name', default='', help='save to project/name')
     parser.add_argument('--device', default='0', help='cuda device')
 

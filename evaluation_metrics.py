@@ -173,65 +173,6 @@ def compute_s1_metrics(ori_jpos_pred, ori_jpos_gt):
 
     return lhand_jpe, rhand_jpe, hand_jpe 
 
-def compute_collision_old(ori_verts_pred, human_faces, obj_verts, obj_faces, actual_len):    
-    collide_depth = 0 
-    collision_percent = 0
-    frames_with_collisions = 0
-    threshold = 0.4
-
-    start_time = time.time()
-
-    for idx in range(actual_len):
-        # Calculate collision metrics 
-        collision_scene_manager = trimesh.collision.CollisionManager()
-        scene_mesh = trimesh.base.Trimesh(vertices=obj_verts[idx].detach().cpu().numpy(), \
-                    faces=obj_faces)
-        collision_scene_manager.add_object("scene", scene_mesh)
-        
-        curr_pred_mesh = trimesh.base.Trimesh(vertices=ori_verts_pred[idx].data.cpu().numpy(), \
-                    faces=human_faces)
-        is_collide, collide_names, collide_contact_data = \
-                                    collision_scene_manager.in_collision_single(curr_pred_mesh, return_names=True, return_data=True)
-
-
-        if is_collide:
-            tmp_collide_depth = []
-            
-            for c_idx in range(len(collide_contact_data)):
-                tmp_collide_depth.append(collide_contact_data[c_idx].depth)
-
-            tmp_collide_depth = np.asarray(tmp_collide_depth)
-
-            if tmp_collide_depth.sum() > threshold:
-                frames_with_collisions += 1
-                collide_depth += tmp_collide_depth.sum()
-
-        # import pdb 
-        # pdb.set_trace()
-
-        # Each collision happens between vertices, the depth is small, not good to use this calculation. 
-        # if is_collide:
-        #     has_collisions = False  # collisions above threshold
-        #     for c_idx in range(len(collide_contact_data)):
-        #         if collide_contact_data[c_idx].depth > threshold:
-        #             has_collisions = True
-        #             collide_depth += collide_contact_data[c_idx].depth 
-
-        #     if has_collisions:
-        #         frames_with_collisions += 1
-    
-    mean_collide_depth = collide_depth/float(actual_len)
-    collision_percent = frames_with_collisions/float(actual_len)
-
-    print("Mean collidee depth:{0}".format(mean_collide_depth))
-    print("Collision percent:{0}".format(collision_percent))
-    import pdb 
-    pdb.set_trace() 
-    
-    end_time = time.time()
-    # print("Compute collision for a single sequence takes {0} seconds.".format(end_time-start_time)) # ABout 35 seconds. 
-    return mean_collide_depth, collision_percent 
-
 def compute_collision(ori_verts_pred, human_faces, obj_verts, obj_faces, \
     obj_name, obj_scale, obj_rot_mat, obj_trans, actual_len): 
     # ori_verts_pred: T X Nv X 3 
@@ -243,7 +184,7 @@ def compute_collision(ori_verts_pred, human_faces, obj_verts, obj_faces, \
     # obj_trans: T X 3 
     # actual_len: scalar value 
 
-    object_sdf_folder = "/move/u/jiamanli/datasets/FullBodyManipCapture/rest_object_sdf_256_npy_files"
+    object_sdf_folder = "./data/rest_object_sdf_256_npy_files"
 
     # Load sdf 
     sdf_path = os.path.join(object_sdf_folder, obj_name+"_cleaned_simplified.obj.npy")

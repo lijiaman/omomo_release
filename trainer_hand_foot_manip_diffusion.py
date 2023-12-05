@@ -125,9 +125,9 @@ class Trainer(object):
         self.ds = train_dataset 
         self.val_ds = val_dataset
         self.dl = cycle(data.DataLoader(self.ds, batch_size=self.batch_size, \
-            shuffle=True, pin_memory=True, num_workers=1))
+            shuffle=True, pin_memory=True, num_workers=4))
         self.val_dl = cycle(data.DataLoader(self.val_ds, batch_size=self.batch_size, \
-            shuffle=False, pin_memory=True, num_workers=1))
+            shuffle=False, pin_memory=True, num_workers=4))
 
     def save(self, milestone):
         data = {
@@ -574,6 +574,9 @@ class Trainer(object):
         with torch.no_grad():
             for s_idx, val_data_dict in enumerate(test_loader):
 
+                if not s_idx % 8 == 0:
+                    continue 
+
                 val_data = val_data_dict['motion'].cuda()
 
                 bs, num_steps, _ = val_data.shape 
@@ -814,11 +817,11 @@ class Trainer(object):
                         pred_human_trans_list, pred_human_rot_list, pred_human_jnts_list, pred_human_verts_list, human_faces_list, \
                             obj_verts_list, obj_faces_list, actual_len_list = \
                             fullbody_trainer.gen_vis_res(best_sampled_all_res[seq_idx:seq_idx+1], val_data_dict, \
-                            milestone, vis_tag=vis_tag, for_quant_eval=True, selected_seq_idx=seq_idx)
+                            0, vis_tag=vis_tag, for_quant_eval=True, selected_seq_idx=seq_idx)
                         gt_human_trans_list, gt_human_rot_list, gt_human_jnts_list, gt_human_verts_list, human_faces_list, \
                             obj_verts_list, obj_faces_list, actual_len_list = \
                             fullbody_trainer.gen_vis_res(val_data_dict['motion'].cuda()[seq_idx:seq_idx+1], val_data_dict, \
-                            milestone, vis_gt=True, vis_tag=vis_tag, for_quant_eval=True, selected_seq_idx=seq_idx)
+                            0, vis_gt=True, vis_tag=vis_tag, for_quant_eval=True, selected_seq_idx=seq_idx)
 
                         obj_scale = val_data_dict['obj_scale'][seq_idx]
                         obj_trans = val_data_dict['obj_trans'][seq_idx]
